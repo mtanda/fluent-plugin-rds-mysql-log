@@ -147,6 +147,7 @@ class Fluent::RdsMysqlLogInput < Fluent::Input
 
           # log file download
           log_file_name = item[:log_file_name]
+          next if log_file_name[%r{error/mysql-error-running}]
           marker = @pos_info.has_key?(log_file_name) ? @pos_info[log_file_name] : "0"
 
           $log.debug "download log from rds: log_file_name=#{log_file_name}, marker=#{marker}"
