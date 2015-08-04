@@ -1,7 +1,7 @@
 class Fluent::RdsMysqlLogInput < Fluent::Input
   Fluent::Plugin.register_input('rds_mysql_log', self)
 
-  LOG_REGEXP = /^(?<time>\d{4}-\d{2}-\d{2} \d{2}\:\d{2}\:\d{2})( (?<pid>\d+))?( \[(?<message_level>.*)\])? (?<message>.*)$/
+  LOG_REGEXP = /^(?<time>\d{4}-\d{2}-\d{2} \d{2}\:\d{2}\:\d{2})( (?<pid>\d+))?( \[(?<message_level>[^\]]*?)\])? (?<message>.*)$/
 
   config_param :access_key_id, :string, :default => nil
   config_param :secret_access_key, :string, :default => nil
