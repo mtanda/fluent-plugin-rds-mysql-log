@@ -85,14 +85,21 @@ class Fluent::RdsMysqlLogInput < Fluent::Input
       $log.debug "pos file get start"
 
       pos_last_written_timestamp = 0
+      pos_error_running_log_hash = ""
       pos_info = {}
       File.open(@pos_file, File::RDONLY) do |file|
         file.each_line do |line|
 
-          pos_match = /^(\d+)$/.match(line)
+          pos_match = /^timestamp: (\d+)$/.match(line)
           if pos_match
             pos_last_written_timestamp = pos_match[1].to_i
             $log.debug "pos_last_written_timestamp: #{pos_last_written_timestamp}"
+          end
+
+          pos_match = /^hash: (\w+)$/.match(line)
+          if pos_match
+            pos_error_running_log_hash = pos_match[1].to_i
+            $log.debug "pos_error_running_log_hash: #{pos_error_running_log_hash}"
           end
 
           pos_match = /^(.+)\t(.+)$/.match(line)
@@ -102,6 +109,7 @@ class Fluent::RdsMysqlLogInput < Fluent::Input
           end
         end
         @pos_last_written_timestamp = pos_last_written_timestamp
+        @pos_error_running_log_hash = pos_error_running_log_hash
         @pos_info = pos_info
       end
     rescue => e
@@ -114,7 +122,8 @@ class Fluent::RdsMysqlLogInput < Fluent::Input
     begin
       $log.debug "pos file write"
       File.open(@pos_file, File::WRONLY|File::TRUNC) do |file|
-        file.puts @pos_last_written_timestamp.to_s
+        file.puts "timestamp: #{@pos_last_written_timestamp.to_s}"
+        file.puts "hash: #{@pos_error_running_log_hash.to_s}"
 
         @pos_info.each do |log_file_name, marker|
           file.puts "#{log_file_name}\t#{marker}"
@@ -128,11 +137,25 @@ class Fluent::RdsMysqlLogInput < Fluent::Input
   def get_logfile_list
     begin
       $log.debug "get logfile-list from rds: db_instance_identifier=#{@db_instance_identifier}, pos_last_written_timestamp=#{@pos_last_written_timestamp}"
-      @rds.describe_db_log_files(
+      log_files = @rds.describe_db_log_files(
         db_instance_identifier: @db_instance_identifier,
         file_last_written: @pos_last_written_timestamp,
         max_records: 10,
       )
+
+      error_running_logs = {}
+      log_files.each do |log_file|
+        log_file.describe_db_log_files.each do |item|
+          log_file_name = item[:log_file_name]
+          next unless log_file_name === "error/mysql-error-running.log"
+          error_running_logs[log_file_name] = item
+        end
+      end
+      pos_error_running_log_hash = error_running_logs.hash
+      @is_rotated = @pos_error_running_log_hash != pos_error_running_log_hash
+      @pos_error_running_log_hash = pos_error_running_log_hash
+
+      log_files
     rescue => e
       $log.warn "RDS Client describe_db_log_files error occurred: #{e.message}"
     end
@@ -147,8 +170,9 @@ class Fluent::RdsMysqlLogInput < Fluent::Input
 
           # log file download
           log_file_name = item[:log_file_name]
-          next if log_file_name[%r{error/mysql-error-running}]
+          next if log_file_name[%r{error/mysql-error-running.log}]
           marker = @pos_info.has_key?(log_file_name) ? @pos_info[log_file_name] : "0"
+          marker = "0" if log_file_name === "error/mysql-error.log" && @is_rotated
 
           $log.debug "download log from rds: log_file_name=#{log_file_name}, marker=#{marker}"
           logs = @rds.download_db_log_file_portion(
