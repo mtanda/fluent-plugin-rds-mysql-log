@@ -1,5 +1,5 @@
 class Fluent::RdsPgsqlLogInput < Fluent::Input
-  Fluent::Plugin.register_input('rds_pgsql_log', self)
+  Fluent::Plugin.register_input('rds_mysql_log', self)
 
   LOG_REGEXP = /^(?<time>\d{4}-\d{2}-\d{2} \d{2}\:\d{2}\:\d{2} .+?):(?<host>.*?):(?<user>.*?)@(?<database>.*?):\[(?<pid>.*?)\]:(?<message_level>.*?):(?<message>.*)$/
 
@@ -7,9 +7,9 @@ class Fluent::RdsPgsqlLogInput < Fluent::Input
   config_param :secret_access_key, :string, :default => nil
   config_param :region, :string, :default => nil
   config_param :db_instance_identifier, :string, :default => nil
-  config_param :pos_file, :string, :default => "fluent-plugin-rds-pgsql-log-pos.dat"
+  config_param :pos_file, :string, :default => "fluent-plugin-rds-mysql-log-pos.dat"
   config_param :refresh_interval, :integer, :default => 30
-  config_param :tag, :string, :default => "rds-pgsql.log"
+  config_param :tag, :string, :default => "rds-mysql.log"
 
   def configure(conf)
     super
