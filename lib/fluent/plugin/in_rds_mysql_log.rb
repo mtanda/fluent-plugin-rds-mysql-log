@@ -1,7 +1,7 @@
 class Fluent::RdsMysqlLogInput < Fluent::Input
   Fluent::Plugin.register_input('rds_mysql_log', self)
 
-  LOG_REGEXP = /^(?<time>\d{4}-\d{2}-\d{2} \d{2}\:\d{2}\:\d{2} .+?):(?<host>.*?):(?<user>.*?)@(?<database>.*?):\[(?<pid>.*?)\]:(?<message_level>.*?):(?<message>.*)$/
+  LOG_REGEXP = /^(?<time>\d{4}-\d{2}-\d{2} \d{2}\:\d{2}\:\d{2})( (?<pid>\d+))?( \[(?<message_level>.*)\])? (?<message>.*)$/
 
   config_param :access_key_id, :string, :default => nil
   config_param :secret_access_key, :string, :default => nil
@@ -190,28 +190,18 @@ class Fluent::RdsMysqlLogInput < Fluent::Input
         $log.debug "raw_record=#{raw_record}"
         line_match = LOG_REGEXP.match(raw_record)
 
-        unless line_match
-          # combine chain of log
-          record["message"] << "\n" + raw_record unless record.nil?
-        else
-          # emit before record
-          Fluent::Engine.emit(@tag, Fluent::Engine.now, record) unless record.nil?
+        next unless line_match
 
-          # set a record
-          record = {
-            "time" => line_match[:time],
-            "host" => line_match[:host],
-            "user" => line_match[:user],
-            "database" => line_match[:database],
-            "pid" => line_match[:pid],
-            "message_level" => line_match[:message_level],
-            "message" => line_match[:message],
-            "log_file_name" => log_file_name,
-          }
-        end
+        record = {
+          "time" => line_match[:time],
+          "message" => line_match[:message],
+          "log_file_name" => log_file_name,
+        }
+        record["pid"] = line_match[:pid] if line_match[:pid]
+        record["message_level"] = line_match[:message_level] if line_match[:message_level]
+
+        Fluent::Engine.emit(@tag, Fluent::Engine.now, record)
       end
-      # emit last record
-      Fluent::Engine.emit(@tag, Fluent::Engine.now, record) unless record.nil?
     rescue => e
       $log.warn e.message
     end
