@@ -18,6 +18,7 @@ Gem::Specification.new do |spec|
 
   spec.add_dependency "fluentd", "~> 0"
   spec.add_dependency "aws-sdk", "~> 2"
+  spec.add_dependency "myslog", "~> 0.0"
 
   spec.add_development_dependency "bundler", "~> 1.7"
 end

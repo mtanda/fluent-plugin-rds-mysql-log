@@ -1,3 +1,5 @@
+require 'myslog'
+
 class Fluent::RdsMysqlLogInput < Fluent::Input
   Fluent::Plugin.register_input('rds_mysql_log', self)
 
@@ -173,6 +175,7 @@ class Fluent::RdsMysqlLogInput < Fluent::Input
           next if log_file_name[%r{error/mysql-error-running.log}]
           marker = @pos_info.has_key?(log_file_name) ? @pos_info[log_file_name] : "0"
           marker = "0" if log_file_name === "error/mysql-error.log" && @is_rotated
+          marker = "0" if log_file_name === "slowquery/mysql-slowquery.log" && @is_rotated
 
           $log.debug "download log from rds: log_file_name=#{log_file_name}, marker=#{marker}"
           logs = @rds.download_db_log_file_portion(
@@ -211,25 +214,53 @@ class Fluent::RdsMysqlLogInput < Fluent::Input
     begin
       $log.debug "raw_records.count: #{raw_records.count}"
       record = nil
-      raw_records.each do |raw_record|
-        $log.debug "raw_record=#{raw_record}"
-        line_match = LOG_REGEXP.match(raw_record)
+      if log_file_name != "slowquery/mysql-slowquery.log"
+        raw_records.each do |raw_record|
+          $log.debug "raw_record=#{raw_record}"
+          line_match = LOG_REGEXP.match(raw_record)
 
-        next unless line_match
+          next unless line_match
 
-        record = {
-          "time" => line_match[:time],
-          "message" => line_match[:message],
-          "log_file_name" => log_file_name,
-        }
-        record["pid"] = line_match[:pid] if line_match[:pid]
-        record["message_level"] = line_match[:message_level] if line_match[:message_level]
+          record = {
+            "time" => line_match[:time],
+            "message" => line_match[:message],
+            "log_file_name" => log_file_name,
+          }
+          record["pid"] = line_match[:pid] if line_match[:pid]
+          record["message_level"] = line_match[:message_level] if line_match[:message_level]
 
-        Fluent::Engine.emit(@tag, Fluent::Engine.now, record)
+          Fluent::Engine.emit(@tag, Time.parse(line_match[:time] + ' +0000').to_i, record)
+        end
+      else
+        myslog = MySlog.new
+        myslog.divide(raw_records).each do |raw_record|
+          $log.debug "raw_record=#{raw_record}"
+          begin
+            record = stringify_keys myslog.parse_record(raw_record)
+            record["log_file_name"] = log_file_name
+            if time = record.delete('date')
+              time = time.to_i
+            else
+              time = Time.now.to_i
+            end
+
+            Fluent::Engine.emit(@tag, time, record)
+          rescue => e
+            $log.warn e.message
+          end
+        end
       end
     rescue => e
       $log.warn e.message
     end
+  end
+
+  def stringify_keys(record)
+    result = {}
+    record.each_key do |key|
+      result[key.to_s] = record[key]
+    end
+    result
   end
 
   class TimerWatcher < Coolio::TimerWatcher
