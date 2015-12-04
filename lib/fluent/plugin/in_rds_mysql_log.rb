@@ -12,6 +12,7 @@ class Fluent::RdsMysqlLogInput < Fluent::Input
   config_param :pos_file, :string, :default => "fluent-plugin-rds-mysql-log-pos.dat"
   config_param :refresh_interval, :integer, :default => 30
   config_param :tag, :string, :default => "rds-mysql.log"
+  config_param :output_per_file, :bool, default: false
 
   def configure(conf)
     super
@@ -215,11 +216,15 @@ class Fluent::RdsMysqlLogInput < Fluent::Input
   def parse_and_emit(raw_records, log_file_name)
     begin
       $log.debug "raw_records.count: #{raw_records.count}"
+
       record = {
         :db_instance_identifier => @db_instance_identifier,
         :region => @region,
         :log_file_name => log_file_name,
       }
+      output_tag = @tag
+      output_tag += ".#{log_file_name.gsub(/\//, '_')}" if @output_per_file
+
       if log_file_name != "slowquery/mysql-slowquery.log"
         raw_records.each do |raw_record|
           $log.debug "raw_record=#{raw_record}"
@@ -231,7 +236,7 @@ class Fluent::RdsMysqlLogInput < Fluent::Input
           record[:pid] = line_match[:pid] if line_match[:pid]
           record[:message_level] = line_match[:message_level] if line_match[:message_level]
 
-          Fluent::Engine.emit(@tag, Time.parse(line_match[:time] + ' +0000').to_i, record)
+          Fluent::Engine.emit(output_tag, Time.parse(line_match[:time] + ' +0000').to_i, record)
         end
       else
         myslog = MySlog.new
@@ -245,7 +250,7 @@ class Fluent::RdsMysqlLogInput < Fluent::Input
               time = Time.now.to_i
             end
 
-            Fluent::Engine.emit(@tag, time, record)
+            Fluent::Engine.emit(output_tag, time, record)
           rescue => e
             $log.warn e.message
           end
