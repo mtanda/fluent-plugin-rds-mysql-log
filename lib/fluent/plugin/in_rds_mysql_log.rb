@@ -223,7 +223,7 @@ class Fluent::RdsMysqlLogInput < Fluent::Input
         :log_file_name => log_file_name,
       }
       output_tag = @tag
-      output_tag += ".#{log_file_name.gsub(/\//, '_')}" if @output_per_file
+      output_tag += ".#{log_file_name.gsub(/\/|\./, '_')}" if @output_per_file
 
       if log_file_name != "slowquery/mysql-slowquery.log"
         raw_records.each do |raw_record|
