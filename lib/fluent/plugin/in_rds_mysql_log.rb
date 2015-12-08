@@ -13,6 +13,7 @@ class Fluent::RdsMysqlLogInput < Fluent::Input
   config_param :refresh_interval, :integer, :default => 30
   config_param :tag, :string, :default => "rds-mysql.log"
   config_param :output_per_file, :bool, default: false
+  config_param :raw_output, :bool, default: false
 
   def configure(conf)
     super
@@ -223,7 +224,7 @@ class Fluent::RdsMysqlLogInput < Fluent::Input
         :log_file_name => log_file_name,
       }
       output_tag = @tag
-      output_tag += ".#{log_file_name.gsub(/\//, '_')}" if @output_per_file
+      output_tag += ".#{log_file_name.gsub(/\/|\./, '_')}" if @output_per_file
 
       if log_file_name != "slowquery/mysql-slowquery.log"
         raw_records.each do |raw_record|
@@ -231,6 +232,7 @@ class Fluent::RdsMysqlLogInput < Fluent::Input
           line_match = LOG_REGEXP.match(raw_record)
           next unless line_match
 
+          record[:raw] = raw_record if @raw_output
           record[:time] = line_match[:time]
           record[:message] = line_match[:message]
           record[:pid] = line_match[:pid] if line_match[:pid]
@@ -243,7 +245,9 @@ class Fluent::RdsMysqlLogInput < Fluent::Input
         myslog.divide(raw_records).each do |raw_record|
           $log.debug "raw_record=#{raw_record}"
           begin
+            raw = raw_record.join("\n") if @raw_output
             record = record.merge(stringify_keys(myslog.parse_record(raw_record)))
+            record[:raw] = raw if @raw_output
             if time = record.delete('date')
               time = time.to_i
             else
