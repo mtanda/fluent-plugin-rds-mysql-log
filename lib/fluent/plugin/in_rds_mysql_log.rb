@@ -219,9 +219,9 @@ class Fluent::RdsMysqlLogInput < Fluent::Input
       $log.debug "raw_records.count: #{raw_records.count}"
 
       record = {
-        :db_instance_identifier => @db_instance_identifier,
-        :region => @region,
-        :log_file_name => log_file_name,
+        "db_instance_identifier" => @db_instance_identifier,
+        "region" => @region,
+        "log_file_name" => log_file_name,
       }
       output_tag = @tag
       output_tag += ".#{log_file_name.gsub(/\/|\./, '_')}" if @output_per_file
@@ -232,11 +232,11 @@ class Fluent::RdsMysqlLogInput < Fluent::Input
           line_match = LOG_REGEXP.match(raw_record)
           next unless line_match
 
-          record[:raw] = raw_record if @raw_output
-          record[:time] = line_match[:time]
-          record[:message] = line_match[:message]
-          record[:pid] = line_match[:pid] if line_match[:pid]
-          record[:message_level] = line_match[:message_level] if line_match[:message_level]
+          record["raw"] = raw_record if @raw_output
+          record["time"] = line_match[:time]
+          record["message"] = line_match[:message]
+          record["pid"] = line_match[:pid] if line_match[:pid]
+          record["message_level"] = line_match[:message_level] if line_match[:message_level]
 
           Fluent::Engine.emit(output_tag, Time.parse(line_match[:time] + ' +0000').to_i, record)
         end
@@ -247,7 +247,7 @@ class Fluent::RdsMysqlLogInput < Fluent::Input
           begin
             raw = raw_record.join("\n") if @raw_output
             record = record.merge(stringify_keys(myslog.parse_record(raw_record)))
-            record[:raw] = raw if @raw_output
+            record["raw"] = raw if @raw_output
             if time = record.delete('date')
               time = time.to_i
             else
