@@ -238,7 +238,7 @@ class Fluent::RdsMysqlLogInput < Fluent::Input
           record["pid"] = line_match[:pid] if line_match[:pid]
           record["message_level"] = line_match[:message_level] if line_match[:message_level]
 
-          Fluent::Engine.emit(output_tag, Time.parse(line_match[:time] + ' +0000').to_i, record)
+          router.emit(output_tag, Time.parse(line_match[:time] + ' +0000').to_i, record)
         end
       else
         myslog = MySlog.new
@@ -254,7 +254,7 @@ class Fluent::RdsMysqlLogInput < Fluent::Input
               time = Time.now.to_i
             end
 
-            Fluent::Engine.emit(output_tag, time, record)
+            router.emit(output_tag, time, record)
           rescue => e
             $log.warn e.message
           end
