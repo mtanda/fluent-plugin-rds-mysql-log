@@ -214,6 +214,24 @@ class Fluent::RdsMysqlLogInput < Fluent::Input
     return raw_records
   end
 
+  def divide_slow_log(lines)
+    records = []
+    line = lines.shift
+    while line
+      record = []
+      while line != nil && line.start_with?("#")
+        record << line.strip
+        line = lines.shift
+      end
+      while line != nil && !line.start_with?("#")
+        record << line.strip
+        line = lines.shift
+      end
+      records << record
+    end
+    records
+  end
+
   def parse_and_emit(raw_records, log_file_name)
     begin
       $log.debug "raw_records.count: #{raw_records.count}"
@@ -241,12 +259,11 @@ class Fluent::RdsMysqlLogInput < Fluent::Input
           router.emit(output_tag, Time.parse(line_match[:time] + ' +0000').to_i, record)
         end
       else
-        myslog = MySlog.new
-        myslog.divide(raw_records).each do |raw_record|
+        divide_slow_log(raw_records).each do |raw_record|
           $log.debug "raw_record=#{raw_record}"
           begin
             raw = raw_record.join("\n") if @raw_output
-            record = record.merge(stringify_keys(myslog.parse_record(raw_record)))
+            record = record.merge(stringify_keys(MySlog.new.parse_record(raw_record)))
             record["raw"] = raw if @raw_output
             if time = record.delete('date')
               time = time.to_i
