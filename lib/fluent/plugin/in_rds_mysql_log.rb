@@ -177,7 +177,10 @@ class Fluent::RdsMysqlLogInput < Fluent::Input
 
           # log file download
           log_file_name = item[:log_file_name]
-          next if log_file_name[%r{error/mysql-error-running.log}] || log_file_name[%r{slowquery/mysql-slowquery.log\.}] || log_file_name[%r{general/mysql-general.log\.}]
+          next if log_file_name[%r{error/mysql-error-running.log$}]
+            || log_file_name[%r{error/mysql-error.log-old$}]
+            || log_file_name[%r{slowquery/mysql-slowquery.log\.}]
+            || log_file_name[%r{general/mysql-general.log\.}]
           marker = @pos_info.has_key?(log_file_name) ? @pos_info[log_file_name] : "0"
           marker = "0" if rotated?(log_file_name)
 
