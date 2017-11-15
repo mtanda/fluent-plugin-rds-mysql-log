@@ -1,7 +1,18 @@
+require 'fluent/plugin/input'
 require 'myslog'
 
-class Fluent::RdsMysqlLogInput < Fluent::Input
+class Fluent::RdsMysqlLogInput < Fluent::Plugin::Input
   Fluent::Plugin.register_input('rds_mysql_log', self)
+
+  # To support log_level option implemented by Fluentd v0.10.43
+  unless method_defined?(:log)
+    define_method("log") { $log }
+  end
+
+  # Define `router` method of v0.12 to support v0.10 or earlier
+  unless method_defined?(:router)
+    define_method("router") { Fluent::Engine }
+  end
 
   LOG_REGEXP = /^(?<time>\d{4}-\d{2}-\d{2} \d{2}\:\d{2}\:\d{2})( (?<pid>\d+))?( \[(?<message_level>[^\]]*?)\])? (?<message>.*)$/
 
