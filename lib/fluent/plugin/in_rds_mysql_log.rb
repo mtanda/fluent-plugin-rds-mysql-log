@@ -188,7 +188,7 @@ class Fluent::RdsMysqlLogInput < Fluent::Plugin::Input
 
           # log file download
           log_file_name = item[:log_file_name]
-          next if log_file_name[%r{error/mysql-error-running.log$}] ||
+          next if log_file_name[%r{error/mysql-error-running.log}] ||
             log_file_name[%r{error/mysql-error.log-old$}] ||
             log_file_name[%r{slowquery/mysql-slowquery.log\.}] ||
             log_file_name[%r{general/mysql-general.log\.}]
