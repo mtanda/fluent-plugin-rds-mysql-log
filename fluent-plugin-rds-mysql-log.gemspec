@@ -3,7 +3,7 @@ $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
 
 Gem::Specification.new do |spec|
   spec.name          = "fluent-plugin-rds-mysql-log"
-  spec.version       = "0.1.8"
+  spec.version       = "0.1.9"
   spec.authors       = ["shinsaka", "Mitsuhiro Tanda"]
   spec.email         = ["shinx1265@gmail.com", "mitsuhiro.tanda@gmail.com"]
   spec.summary       = "Amazon RDS for MySQL log input plugin"
